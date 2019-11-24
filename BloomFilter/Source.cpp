@@ -88,7 +88,10 @@ int main(void) {
 	//bloom_filter bf= 
 	bloom_filter bf(n, fpr);
 	bf.insert("Hello");
-	cout <<"\n"<< bf.query("Hello");
+	bf.insert("Hi");
+	bf.insert("Janina");
+	bf.insert("Vallagena");
+	cout <<"\n"<< bf.query("Dash");
 	//string s = "Helllo";
 	//uint32_t* p = new uint32_t(1);
 	//const void* str=s.c_str();
