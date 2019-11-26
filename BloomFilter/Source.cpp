@@ -24,6 +24,15 @@ class bloom_filter {
 	bit_vector bloom;
 	
 public: 
+	int get_size(){
+		return size;
+	}
+
+
+	double get_fpr(){
+		return fpr;
+	}
+
 	bloom_filter(int n, double fpr) {
 		this->size = n;
 		this->fpr = fpr;
@@ -43,20 +52,20 @@ public:
 		int index;
 		//cout<<S.length()<<"\t"<<sizeof(str)<<"\n";
 
-		cout<<S<<"\n";
+		//cout<<S<<"\n";
 
 		for (int i = 0; i < k; i++) {
 			//MurmurHash3_x64_128();
 			MurmurHash3_x86_32(str, S.length(), i+1, p); //String, String size
 			index = *p % m;
 
-			cout<<*p<<"\t"<<index<<"\t";
+			//cout<<*p<<"\t"<<index<<"\t";
 			bloom[index]=true;
 
 		}
 
-		cout<<"\n";
-		print();
+		//cout<<"\n";
+		//print();
 	}
 
 	void print() {
@@ -71,13 +80,13 @@ public:
 
 		int index;
 		//cout << S.length() << "\t" << sizeof(str) << "\n";
-		cout<<S<<"\n";
+		//cout<<S<<"\n";
 		for (int i = 0; i < k; i++) {
 			//MurmurHash3_x64_128();
 			MurmurHash3_x86_32(str, S.length(), i + 1, p); //String, String size
 			index = *p % m;
 
-			cout<<*p<<"\t"<<index<<"\t";
+			//cout<<*p<<"\t"<<index<<"\t";
 			if(bloom[index] == false) return 'N';
 
 
@@ -115,12 +124,15 @@ public:
 		while(!inf.eof()){
 			bloom.push_back(inf.get());
 		}
+		/*
+
 
 		cout<<"\nbitvector\n";
 		for(int i=0; i<bloom.size(); i++){
 			cout<<bloom.at(i);
 
 		}
+		*/
 		//std::copy(iter,begin(), iter.end(), std::back_inserter(b));
 
 	}
@@ -139,13 +151,16 @@ class block_bloom_filter {
 
 
 public:
+	int get_n(){
+		return size;
+	}
 	block_bloom_filter(int n, double fpr) {
 		this->size = n;
 		this->fpr = fpr;
 		this->m = ceil(-((n * log(fpr)) / pow(log(2), 2.0))); //Natural logarithm	m = −n ln p/(ln 2)2
-		cout << m << "\n";
+		//cout << m << "\n";
 		this->k = ceil((m / n) * log(2));// Calculate k k = (m/n) ln 2 􃱺 2-k ≈ 0.6185 m/n
-		cout << k<<"\n";
+		//cout << k<<"\n";
 		block_bloom.resize(m, false);
 		this->s = ceil((double) m / cache_line_size); //Total number of Bloom Filters
 		cout<<s<<"s valye\n";
@@ -226,8 +241,37 @@ public:
 		return 'Y';
 	}
 
-	void save(ofstream& of);
-    void load(ifstream& inf);
+	void save(ofstream& of){
+		of.write( reinterpret_cast<const char *> (&size), sizeof(size));
+
+		of.write( reinterpret_cast<const char *> (&fpr), sizeof(fpr));
+		of.write( reinterpret_cast<const char *> (&m), sizeof(m));
+		of.write( reinterpret_cast<const char *> (&k), sizeof(k));
+		of.write(reinterpret_cast<const char *> (&s), sizeof(s));
+		of.write(reinterpret_cast<const char *> (&cache_line_size), sizeof(cache_line_size));
+		
+		
+		std::copy(block_bloom.begin(), block_bloom.end(), std::ostreambuf_iterator<char>(of));
+		
+		
+	}
+    void load(ifstream& inf){
+		inf.read((char*) (&size), sizeof(size));
+		
+		//cout<<"\nread\t"<<size<<"\t abc\n";
+		inf.read((char*) (&fpr), sizeof(fpr));
+		inf.read((char*) (&m), sizeof(m));
+		inf.read((char*) (&k), sizeof(k));
+		inf.read((char*) (&s), sizeof(s));
+		inf.read((char*) (&cache_line_size), sizeof(cache_line_size));
+		
+		//cout<<"\n"<<size<<"\t"<<fpr<<"\t"<<m<<"\t"<<k<<"\t";
+		//std::istreambuf_iterator iter(inf);
+		//bit_vector b;
+		while(!inf.eof()){
+			block_bloom.push_back(inf.get());
+		}
+	}
 
 
 
@@ -243,14 +287,16 @@ int main(int argc, char** argv)
 	}
 
 	// $bf build -k <key file> -f <fpr> -n <num. distinct keys> -o <output file>
+	/*
 
 	cout<<argc<<"\n";
 	for(int i=0; i<argc; i++){
 		cout<< argv[i]<<"\n";
 	}
-
+	*/
 
 	std::string arg = argv[1];
+	
 
 
 	if(arg=="build") {
@@ -264,10 +310,10 @@ int main(int argc, char** argv)
 		double fpr;
 
 		n= atoi(argv[4]);
-		cout<<n<<"\n";
+		//cout<<n<<"\n";
 
 		fpr=atof(argv[3]);
-		cout<<fpr<<"\n";
+		//cout<<fpr<<"\n";
 		bloom_filter bf(n,fpr);
 		string S;
 
@@ -295,7 +341,6 @@ int main(int argc, char** argv)
 		ifstream inff(input, std::ios::in | std::ifstream::binary);
 		ifstream keyfile (query);
 
-
 		bloom_filter bf(inff);
 		inff.close();
 
@@ -303,10 +348,107 @@ int main(int argc, char** argv)
 
 		while (keyfile >> S)
 		{
-			cout<<bf.query(S)<<"\n";
+			cout<<S<<":"<<bf.query(S)<<"\n";
 				// process pair (a,b)
 		}
+		
 		keyfile.close();
+
+	}
+
+	if(arg=="query1"){
+		std::string input = argv[2];
+		std::string query_all = argv[3];
+
+		std::string query_half = argv[4];
+
+		std::string query_none = argv[5];
+
+		char records[3][1000];
+
+
+		ifstream inff(input, std::ios::in | std::ifstream::binary);
+		ifstream keyallfile (query_all);
+		ifstream keyhalffile (query_half);
+		ifstream keynonefile (query_none);
+
+
+		ofstream outfile ("benchmark.txt" , std::ios_base::app | std::ios_base::out);
+		outfile.setf(ios::fixed,ios::floatfield);
+		
+
+
+		bloom_filter bf(inff);
+		inff.close();
+
+		string S;
+
+		auto start = std::chrono::system_clock::now();
+
+		int i=0;
+
+		while (keyallfile >> S)
+		{
+			records[0][i++]=bf.query(S);
+			//cout<<S<<":"<<bf.query(S)<<"\n";
+				// process pair (a,b)
+		}
+		auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double, std::milli> elapsed_seconds = end-start;
+
+		auto start2 = std::chrono::system_clock::now();
+		i=0;
+
+		while (keyhalffile >> S)
+		{
+			records[1][i++]=bf.query(S);
+			//cout<<S<<":"<<bf.query(S)<<"\n";
+				// process pair (a,b)
+		}
+		auto end2 = std::chrono::system_clock::now();
+        std::chrono::duration<double, std::milli> elapsed_seconds2 = end2-start2;
+
+		auto start3 = std::chrono::system_clock::now();
+
+		i=0;
+
+		while (keynonefile >> S)
+		{
+			records[2][i++]=bf.query(S);
+
+			//cout<<S<<":"<<bf.query(S)<<"\n";
+				// process pair (a,b)
+		}
+		auto end3 = std::chrono::system_clock::now();
+        std::chrono::duration<double, std::milli> elapsed_seconds3 = end3-start3;
+		double empirical_fpr1=0;
+		double empirical_fpr2=0;
+		int count1=0;
+		int count2=0;
+		int count3=0;
+		for(int j=500; j< 1000;j++){
+			if(records[1][j]=='Y') count1++;
+		}
+		
+
+		for(int j=0; j< 1000;j++){
+			if(records[2][j]=='Y') count2++;
+		}
+		for(int j=0; j< 1000;j++){
+			if(records[0][j]=='N') count3++;
+		}
+		empirical_fpr1= (double ) count1/500;
+
+		empirical_fpr2= (double ) count2/1000;
+
+
+		outfile<<bf.get_size()<<","<<bf.get_fpr()<<","<<elapsed_seconds.count()/1000.0<<","<< count3<<","<<elapsed_seconds2.count()/1000.0<<","<<empirical_fpr1<<","<<elapsed_seconds3.count()/1000.0<<","<<empirical_fpr2<<"\n";
+		outfile.close();
+
+	
+		keyallfile.close();
+		keyhalffile.close();
+		keynonefile.close();
 
 	}
 
