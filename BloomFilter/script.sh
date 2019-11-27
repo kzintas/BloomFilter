@@ -5,7 +5,7 @@
 #$bf query -i <input file> -q <queries>
 #g++  -std=c++14 Source.cpp Headers/MurmurHash3.cpp -o src;
 
-echo "$1"
+#echo "$1"
 if [ $1 = "build" ]
 then
 ./src $1 $3 $5 $7 $9

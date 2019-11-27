@@ -147,12 +147,17 @@ class block_bloom_filter {
 	int k; //Number of hash functions
 	int s;//Number of bloom filters 
 	bit_vector block_bloom;
-	int cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE)*8;
+	int cache_line_size ;
 
 
 public:
-	int get_n(){
+	int get_size(){
 		return size;
+	}
+
+
+	double get_fpr(){
+		return fpr;
 	}
 	block_bloom_filter(int n, double fpr) {
 		this->size = n;
@@ -161,9 +166,12 @@ public:
 		//cout << m << "\n";
 		this->k = ceil((m / n) * log(2));// Calculate k k = (m/n) ln 2 􃱺 2-k ≈ 0.6185 m/n
 		//cout << k<<"\n";
-		block_bloom.resize(m, false);
+		this->cache_line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE)*8;
+		
 		this->s = ceil((double) m / cache_line_size); //Total number of Bloom Filters
-		cout<<s<<"s valye\n";
+		//cout<<s<<"s valye\n";
+		block_bloom.resize(cache_line_size*s, false);
+		
 	}
 
 	void insert(string S) {
@@ -182,26 +190,40 @@ public:
 		//if(s!=0) 
 		block_number = *p % s; //Which block the filter belongs to
 		//else block_number=0; //Because number of blocks is zero then
+		//cout<<"\n"<<*p<<"\n";
+		//cout<<"\n"<<s<<" SSS\n";
+		//cout<<"\n"<<block_number<<"b\n";
 
 		first_index = block_number * cache_line_size;
-		last_index = (block_number + 1) * cache_line_size - 1;
+		//last_index = (block_number + 1) * cache_line_size - 1;
 
 		//cout <<"\n"<< S.length() << "\t" << sizeof(str) << "\n";
 
-		cout<<S<<"\n";
+		//cout<<S<<"\n";
+		//int div=min(cache_line_size,m);
+		//cout<<div<<"\n";
 		for (int i = 1; i < k; i++) {
 			//MurmurHash3_x64_128();
 			MurmurHash3_x86_32(str, S.length(), i + 1, p); //String, String size
-			index = *p % cache_line_size;
-			cout<<index<<"a\t";
+			//cout<<*p<<"\n";
+			//cout<<"div="<<div << "\n";
+			index = (*p) % cache_line_size;
+			//cout<<index<<"\t";
+			//if(index>m) cout<<"\n"<<index<<"\tError detected\n";
+			//cout<<"\n"<<index<<"a\t\n";
+			//cout<<"\n"<<first_index<<"a\t\n";
+			
+			//cout<<(index+first_index)<<"a\t\n";
+			
 			block_bloom[index+first_index] = true;
 
 		}
-		cout<<"\n";
+		//cout<<"\n";
 		//print();
 	}
 
 	void print() {
+		cout<<"\nprinting\n";
 		for (int i = 0; i < block_bloom.size(); i++) {
 			cout << block_bloom.at(i);
 		}
@@ -226,15 +248,17 @@ public:
 
 		
 		first_index = block_number * cache_line_size;
-		last_index = (block_number + 1) * cache_line_size - 1;
+		//last_index = (block_number + 1) * cache_line_size - 1;
+
+		//int div=min(cache_line_size,m);
 
 		//cout << S.length() << "\t" << sizeof(str) << "\n";
-		cout<<S<<"\n";
+		//cout<<S<<"\n";
 		for (int i = 1; i < k; i++) {
 			//MurmurHash3_x64_128();
 			MurmurHash3_x86_32(str, S.length(), i + 1, p); //String, String size
 			index = *p % cache_line_size;
-			cout<<index<<"\t";
+			//cout<<index<<"\t";
 			if (block_bloom[index + first_index] == false) return 'N';
 
 		}
@@ -249,13 +273,14 @@ public:
 		of.write( reinterpret_cast<const char *> (&k), sizeof(k));
 		of.write(reinterpret_cast<const char *> (&s), sizeof(s));
 		of.write(reinterpret_cast<const char *> (&cache_line_size), sizeof(cache_line_size));
-		
+		//cout<<"\nWriting\n";
 		
 		std::copy(block_bloom.begin(), block_bloom.end(), std::ostreambuf_iterator<char>(of));
-		
+		//for (const auto &e: block_bloom) of<<e;
+		//cout<<"\nFinished Writing\n";
 		
 	}
-    void load(ifstream& inf){
+    block_bloom_filter(ifstream& inf){
 		inf.read((char*) (&size), sizeof(size));
 		
 		//cout<<"\nread\t"<<size<<"\t abc\n";
@@ -314,7 +339,7 @@ int main(int argc, char** argv)
 
 		fpr=atof(argv[3]);
 		//cout<<fpr<<"\n";
-		bloom_filter bf(n,fpr);
+		block_bloom_filter bf(n,fpr);
 		string S;
 
 		while (keyfile >> S)
@@ -323,13 +348,16 @@ int main(int argc, char** argv)
 				// process pair (a,b)
 		}
 		keyfile.close();
+		//bf.print();
+		//cout<<"\nDOne Inserting\n";
 		if(outfile.is_open()){
 			bf.save(outfile);
 		}
 		outfile.close();
-		ifstream inff(output, std::ios::in | std::ifstream::binary);
+		//cout<<"Here\n";
+		//ifstream inff(output, std::ios::in | std::ifstream::binary);
 		//bf.load(inff);
-		inff.close();
+		//inff.close();
 
 	}
 
@@ -341,7 +369,7 @@ int main(int argc, char** argv)
 		ifstream inff(input, std::ios::in | std::ifstream::binary);
 		ifstream keyfile (query);
 
-		bloom_filter bf(inff);
+		block_bloom_filter bf(inff);
 		inff.close();
 
 		string S;
@@ -373,12 +401,12 @@ int main(int argc, char** argv)
 		ifstream keynonefile (query_none);
 
 
-		ofstream outfile ("benchmark.txt" , std::ios_base::app | std::ios_base::out);
+		ofstream outfile ("benchmark_block.txt" , std::ios_base::app | std::ios_base::out);
 		outfile.setf(ios::fixed,ios::floatfield);
 		
 
 
-		bloom_filter bf(inff);
+		block_bloom_filter bf(inff);
 		inff.close();
 
 		string S;
