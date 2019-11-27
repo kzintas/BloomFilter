@@ -8,16 +8,16 @@
 #echo "$1"
 if [ $1 = "build" ]
 then
-./src $1 $3 $5 $7 $9
+./bf $1 $3 $5 $7 $9
 
 elif [ $1 = "query" ]
 then
 
-./src $1 $3 $5
+./bf $1 $3 $5
 elif [ $1 = "query1" ]
 then
 
-./src $1 $3 $5 $6 $7
+./bf $1 $3 $5 $6 $7
 
 fi
 #./src $1 $2 $3
